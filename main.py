@@ -20,7 +20,8 @@ class User(UserMixin):
         self.username = username
         self.carrello_spesa = []
 
-db = firestore.Client.from_service_account_json('credentials.json')
+db = 'smartbuilding'
+db = firestore.Client.from_service_account_json('credentials.json', database=db)
 
 @login.user_loader
 def load_user(username):
@@ -59,6 +60,22 @@ def receive_data():
     db.collection('energy_data').document(timestamp).set(data)
     return {'status': 'dato ricevuto'}
 
+
+@app.route('/')
+@login_required
+def home():
+    return redirect(url_for('graph'))
+
+
+@app.route('/sensrs/<sensor>', methods=['POST'])
+def new_data(sensor):
+    data = request.values['date']
+    val = float(request.values['val'])
+
+
+
+
+'''
 @app.route('/graph')
 @login_required
 def grapg():
@@ -117,7 +134,4 @@ def grapg():
                            start = start or '', 
                            end = end or '')
                            
-@app.route('/')
-@login_required
-def home():
-    return redirect(url_for('graph'))
+'''
