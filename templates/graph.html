@@ -1,0 +1,123 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Dashboard Energetica</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <link rel="stylesheet" href="../static/assets/css/main.css" />
+
+    <!-- Google Charts -->
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+    <script>
+        google.charts.load('current', {
+            packages: ['corechart', 'calendar']
+        });
+
+        google.charts.setOnLoadCallback(() => {
+            drawLineChart();
+            drawCalendarChart();
+        });
+
+        async function drawLineChart(start = null, end = null) {
+            let url = "/api/building";
+            const params = new URLSearchParams();
+            if (start) params.append("start", start);
+            if (end) params.append("end", end);
+            if (params.toString()) url += "?" + params.toString();
+
+            const response = await fetch(url);
+            const json = await response.json();
+
+            const data = new google.visualization.DataTable();
+            data.addColumn('string', 'Time');
+            data.addColumn('number', 'Consumo');
+            data.addColumn('number', 'Produzione');
+
+            json.forEach(entry => {
+                data.addRow([entry.time, entry.consumption, entry.generation]);
+            });
+
+            const options = {
+                title: 'Consumo e Produzione',
+                hAxis: { title: 'Ora' },
+                vAxis: { title: 'Watt' },
+                legend: { position: 'bottom' }
+            };
+
+            const chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+            chart.draw(data, options);
+        }
+
+        async function drawCalendarChart() {
+            const res = await fetch("/api/consumo-giornaliero");
+            const data = await res.json();
+
+            const dataTable = new google.visualization.DataTable();
+            dataTable.addColumn({ type: 'date', id: 'Date' });
+            dataTable.addColumn({ type: 'number', id: 'Consumo' });
+
+            for (const dateStr in data) {
+                const [year, month, day] = dateStr.split('-').map(Number);
+                dataTable.addRow([new Date(year, month - 1, day), data[dateStr]]);
+            }
+
+            const chart = new google.visualization.Calendar(document.getElementById('calendar_div'));
+            chart.draw(dataTable, {
+                title: "Consumo giornaliero",
+                height: 350
+            });
+        }
+
+        function aggiornaGrafici() {
+            const start = document.getElementById("start").value;
+            const end = document.getElementById("end").value;
+            drawLineChart(start, end);
+        }
+    </script>
+</head>
+<body class="is-preload">
+
+<!-- Wrapper -->
+<div id="wrapper">
+
+    <!-- Intro -->
+    <section class="intro">
+        <header>
+            <h1>Dashboard Energetica</h1>
+            <ul class="actions">
+                <li><a href="#first" class="arrow scrolly"><span class="label">Next</span></a></li>
+            </ul>
+        </header>
+
+        <div class="content">
+            <strong>Filtra per data</strong><br>
+            <input type="datetime-local" id="start">
+            <input type="datetime-local" id="end">
+            <button onclick="aggiornaGrafici()">Applica</button>
+
+            <hr>
+            <h2>Consumo e Produzione</h2>
+            <div id="chart_div" style="width:100%; height: 400px;"></div>
+
+            <h2>Consumo Giornaliero (Calendar Chart)</h2>
+            <div id="calendar_div" style="width:100%; height: 350px;"></div>
+        </div>
+    </section>
+
+    <!-- Copyright -->
+    <div class="copyright">
+        &copy; Template: <a href="https://html5up.net">HTML5 UP</a>.
+    </div>
+
+</div>
+
+<!-- Scripts -->
+<script src="../static/assets/js/jquery.min.js"></script>
+<script src="../static/assets/js/jquery.scrolly.min.js"></script>
+<script src="../static/assets/js/browser.min.js"></script>
+<script src="../static/assets/js/breakpoints.min.js"></script>
+<script src="../static/assets/js/util.js"></script>
+<script src="../static/assets/js/main.js"></script>
+
+</body>
+</html>
