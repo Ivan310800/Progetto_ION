@@ -8,7 +8,7 @@ from google.cloud import storage, firestore
 
 app = Flask(__name__)
 app.secret_key = secret_key
-login_manager = LoginManager()
+login = LoginManager(app)
 login.login_view = 'login'
 
 
@@ -66,15 +66,46 @@ def receive_data():
 def home():
     return redirect(url_for('graph'))
 
-
+#Scrittura dei dati dei sensori
 @app.route('/sensrs/<sensor>', methods=['POST'])
 def new_data(sensor):
     data = request.values['date']
     val = float(request.values['val'])
+    entity = db.collection('sensors').document(sensor).get()
+    if entity.exists:
+        d = entity
+        d['readings'].append({'data':data, 'val': val})
+        db.collection('sensors').document(sensor).set(d)
+    else:
+        db.collection('sensors').document(sensor).set({'readings': [{'data': data, 'val': val}]})
+    return 'ok', 200
 
+#Lettura dei dati dei sensori
+@app.route('/sensors/<sensor>', methods=['GET'])
+def read(sensor):
+    entity = db.collection('sensors').document(sensor).get()
+    if entity.exists:
+        d = entity.to_dict()
+        return json.dumps(d['readings']), 200
+    else:
+        return 'NOT FOUND', 404
 
-
-
+@app.route('/graph/<sensor>')
+def graph(sensor):
+    entity = db.collection('sensors').document(sensor).get()
+    if entity.exists:
+        x = entity.to_dict()['readings']
+        x2 = []
+        for d in x:
+            x2.append([d['data'], d['val']])
+        x = str(x2)
+        return render_template('graph.html', data=x, sensor=sensor)
+    else:
+        return 'NOT FOUND', 404
+    
+if __name__ == '__main__':
+    app.run(debug=True, host='localhost', port=5000)
+    
 '''
 @app.route('/graph')
 @login_required
