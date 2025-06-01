@@ -1,0 +1,23 @@
+requests
+python-telegram-bot
+# pip install --upgrade apscheduler pytz tzlocal
+
+google-cloud-storage
+google-cloud-firestore
+google-cloud-pubsub
+
+flask
+flask_login
+paho-mqtt
+flask-mqtt
+
+numpy
+pandas
+matplotlib
+scikit-learn
+plotly
+
+google-cloud-aiplatform
+google-cloud-texttospeech
+google-genai
+
