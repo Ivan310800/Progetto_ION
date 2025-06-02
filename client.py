@@ -1,33 +1,32 @@
-
+#Client IoT per invio dati energetici da Excel al server Flask
 import pandas as pd
-import requests 
+from requests import post
 import time
-import json
 
-server = 'http://localhost:5000'
+#Indirizzo del server Flask
+server = 'http://localhost:8080'
 
-building = pd.read_excel('dataset.xlsx', sheet_name='building_energy')
+#Carica il file excel contenente i dati energetici
+xls = pd.ExcelFile('dataset.xlsx')
+building = xls.parse('buiding_energy')
 
-#Leggere i dati dal file Excel di tutti i fogli 
-zones = {}
-for i in range(1, num_zones + 1):
-    zone_name = f'zone_{i}_energy'
-    zones[f'zone{i}'] = pd.read_excel('dataset.xlsx', sheet_name=zone_name)
-
-# Inviare i dati al server fila per fila
+#Invia i dati di consumo energetico dell'edificio
 for i in range(len(building)):
-    try:
-        data = {
-            'time': building.iloc[i]['time'].isoformat(),
-            'building_consumption': float(building.iloc[i]['power_consumtion']),
-            'building_generation': float(building.iloc[i]['power_generation'])
-        }
-        for zone_name, zone_df in zones.items():
-            data[f'{zone_name}_consumption'] = float(zone_df.iloc[i]['power'])
+    timestamp = building.iloc[i]['time'].isoformat() #Data/ora in formato ISO
+    val = float(building.iloc[i]['power_consumtion']) #Valore di consumo energetico
+    #Invio i dati al server come sensore "building"
+    post(f'{server}/sensor/building', data={'date': timestamp, 'val':val})
+    time.sleep(2) # Attendi 2 secondi tra gli invii per evitare sovraccarico del server
 
-        response = requests.post(f'{server}/data', json=data)
-        print(f"[{i}] Inviato: {response.status_code}")
-        time.sleep(1)  # Simula un intervallo di 1 secondo tra gli invii
+#Individua e carica i fogli delle zone energetiche (zone1, zone2, zone3,...)
+zone_sheets = [s for s in xls.sheet_names if s.startswith('zone') and s.endswith('_energy')]
+zones = {s.replace('_energy', ''): xls.parse(s) for s in zone_sheets}
 
-    except Exception as e:
-        print(f'Errore nella fila {i}: {e}')
+#Invia i dati di consumo energetico per ogni zona
+for zone_name, zone_df in zone.items():
+    for i in range(len(zone_df)):
+        timestamp = building.iloc[i]['time'].isoformat() #Tempo sincronizzato con building
+        val = float(zone_df.iloc[i]['power']) #Valore di consumo energetico della zona
+        #Invio i dati al server come sensore della zona specifica
+        post(f'{sensor}/sensors/{zone_name}', data={'date':timestamp, 'val':val})
+        time.spleep(2) # Attendi 2 secondi tra gli invii per evitare sovraccarico del server

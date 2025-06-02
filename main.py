@@ -1,4 +1,4 @@
-from flask import Flask, redirect, url_for, request, render_template, jsonify, flash
+from flask import Flask, redirect, url_for, request, render_template
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required, UserMixin
 from secret import secret_key
 import json
@@ -12,7 +12,7 @@ login = LoginManager(app)
 login.login_view = 'login'
 
 
-# User model
+# Definizione del modello utente
 class User(UserMixin):
     def __init__(self, username):
         super().__init__()
@@ -20,9 +20,11 @@ class User(UserMixin):
         self.username = username
         self.carrello_spesa = []
 
+# Inizializzazione del client Firestore con database 'smartbuilding'
 db = 'smartbuilding'
 db = firestore.Client.from_service_account_json('credentials.json', database=db)
 
+#Caricameto utente della sessione
 @login.user_loader
 def load_user(username):
     doc = db.collection('users').document(username).get()
@@ -30,10 +32,11 @@ def load_user(username):
         return User(username)
     return None
 
+#Roure di login
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
-        return render_template('login.html')
+        return redirect(url_for('static', filename='login.html'))
     username = request.form['u']
     password = request.form['p']
     next_page = request.form.get('next', url_for('graph'))
@@ -46,42 +49,49 @@ def login():
             return redirect(next_page)
     return {"Login fallito. Riprova."}, 401
 
+#Route di logout
 @app.route('/logout', methods=['POST'])
 @login_required
 def logout():
     logout_user()
     return redirect(url_for('login'))
 
+# Route per ricevere i dati energetici da client [POST]
 @app.route('/data', methods=['POST'])
 @login_required
 def receive_data():
     data = request.get_json()
     timestamp = data.get('timestamp')
+    if not timestamp:
+        return {'error': 'Timestamp mancante'}, 400
     db.collection('energy_data').document(timestamp).set(data)
     return {'status': 'dato ricevuto'}
 
+#Route per leggere i dati energetici [GET]
+@app.route('/data', methods=['GET'])
+def read_data():
+    docs = db.collection('energy_data').order_by('timestamp').stream()
+    output = [doc.to_dict() for doc in docs]
+    return json.dumps(output), 200
 
-@app.route('/')
+#Route per ricevere dati da un sensore specifico 
+@app.route('/sensors/<sensor>', methods=['POST'])
 @login_required
-def home():
-    return redirect(url_for('graph'))
-
-#Scrittura dei dati dei sensori
-@app.route('/sensrs/<sensor>', methods=['POST'])
 def new_data(sensor):
-    data = request.values['date']
+    date = request.values['date']
     val = float(request.values['val'])
     entity = db.collection('sensors').document(sensor).get()
     if entity.exists:
-        d = entity
-        d['readings'].append({'data':data, 'val': val})
+        d = entity.to_dict()
+        d['readings'].append({'data': date, 'val': val})
         db.collection('sensors').document(sensor).set(d)
     else:
-        db.collection('sensors').document(sensor).set({'readings': [{'data': data, 'val': val}]})
+        db.collection('sensors').document(sensor).set({'readings': [{'data': date, 'val': val}]})
     return 'ok', 200
 
-#Lettura dei dati dei sensori
+#Route per leggere i dati di un sensore specifico
 @app.route('/sensors/<sensor>', methods=['GET'])
+@login_required
 def read(sensor):
     entity = db.collection('sensors').document(sensor).get()
     if entity.exists:
@@ -89,80 +99,75 @@ def read(sensor):
         return json.dumps(d['readings']), 200
     else:
         return 'NOT FOUND', 404
-
-@app.route('/graph/<sensor>')
-def graph(sensor):
-    entity = db.collection('sensors').document(sensor).get()
-    if entity.exists:
-        x = entity.to_dict()['readings']
-        x2 = []
-        for d in x:
-            x2.append([d['data'], d['val']])
-        x = str(x2)
-        return render_template('graph.html', data=x, sensor=sensor)
-    else:
-        return 'NOT FOUND', 404
     
-if __name__ == '__main__':
-    app.run(debug=True, host='localhost', port=5000)
-    
-'''
-@app.route('/graph')
+# Route per la pagina principale
+@app.route('/')
 @login_required
-def grapg():
-    sensor = request.args.get('sensor', 'building_consumption')
+def home():
+    return redirect(url_for('graph', sensor='building'))
+
+#Visualizzazione grafici(pagina)
+@app.route('/graph/<sensor>')
+@login_required
+def graph(sensor):
+    return render_template('graph.html', sensor=sensor)
+
+#API per grafico a linee: consumo e produzione nel tempo
+@app.route('/api/building')
+@login_required
+def api_building():
     start = request.args.get('start')
     end = request.args.get('end')
 
-    date_start = datetime.strptime(start, '%Y-%m-%dT%H:%M:%S') if start else datetime(2000,1,1)
-    date_end = datetime.strptime(end, '%Y-%m-%dT%H:%M:%S') if end else datetime(2100,1,1)
+    query = db.collection('energy_data')
+    if start:
+        query = query.where('timestamp', '>=', start)
+    if end:
+        query = query.where('timestamp', '<=', end)
 
-    docs = db.collection('energy_data').order_by('timestamp').stream()
-
-    timeseries = []
-    zone_totals = {}
-    calendar_data = []
-    day_aggregate = {}
-
-    sensor_options = [
-        'building_consumption', 'building_generation',
-        'zone1_consumption', 'zone2_consumption', 'zone3_consumption',
-        'zone4_consumption', 'zone5_consumption'
-    ]
-
+    docs = query.order_by('timestamp').stream()
+    output = []
     for doc in docs:
         d = doc.to_dict()
-        timestamp = d.get['timestamp']
-        dt = datetime.fromisoformat(timestamp)
-        if not (date_start <= dt <= date_end):
-            continue
-            
-        date_str = dt.strftime('%Y-%m-%d')
-        row = [date_str]
-        for s in sensor_options:
-            row.append(d.get(s, 0))
-        timeseries_data.append(row)
+        output.append({
+            'time': d['timestamp'],
+            'consumption': d.get('building_consumption', 0),
+            'generation': d.get('building_generation', 0)
+        })
+    return json.dumps(output), 200
 
-        for s in sensor_options:
-            if 'zone' in s:
-                zone_totals[s] = zone_totals.get(s, 0) + d.get(s, 0)
+#API per calendar chart: consumo giornaliero totale
+@app.route('/api/consumo_gionrnaliero')
+@login_required
+def consumo_giornaliero():
+    docs = db.collection('energy_data').stream()
+    daily_consumption = {}
+    for doc in docs:
+        d = doc.to_dict()
+        timestamp = d.get('timestamp')
+        if timestamp:
+            date_only = timestamp.split('T')[0]  # Prendo solo la data
+            if date_only not in daily_consumption:
+                daily_consumption[date_only] = 0
+            daily_consumption[date_only] += d.get('building_consumption', 0)
+    return json.dumps(daily_consumption), 200
 
-        day_aggreate[dt.date()] = day_aggregate.get(dt.date(), 0) + d.get('bulding_consumption', 0)
+#API per grafico a torta: distribuzione consumo per zona
+@app.route('/api/consumo_zone')
+@login_required
+def consumo_zone():
+    docs = db.collection('energy_data').stream()
+    zone_totals = {}
+    for doc in docs:
+        d = doc.to_dict()
+        for k, v in d.keys():
+            if k.endswith('_consumption') and k != 'building_consumption':
+                zone = k.replace('_consumption', '')
+                if zone not in zone_totals:
+                    zone_totals[zone] = 0
+                zone_totals[zone] += v
+    return json.dumps(zone_totals), 200
 
-        pie_data = [['Zona', 'Consumo']]
-        for zone, total in zone_totals.items():
-            pie_data.append([zone, total])
-
-    calendar_data = [[datetime.combine(day, datetime.mi.time()), value] for day, value in sorted(day_aggregate.items())]
-
-    return render_template('graph.html', 
-                           data = json.dumps(timeseries_data),
-                           timeseries_data = json.dumps(timeseries_data), 
-                           pie_data = json.dumps(pie_data), 
-                           calendar_data = json.dumps(calendar_data), 
-                           sensor = sensor,
-                           options = sensor_options,
-                           start = start or '', 
-                           end = end or '')
-                           
-'''
+#Avvio del server
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080, debug=True)
