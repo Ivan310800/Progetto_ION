@@ -8,12 +8,12 @@ server = 'http://localhost:8080'
 
 #Carica il file excel contenente i dati energetici
 xls = pd.ExcelFile('dataset.xlsx')
-building = xls.parse('buiding_energy')
+building = xls.parse('building_energy')
 
 #Invia i dati di consumo energetico dell'edificio
 for i in range(len(building)):
     timestamp = building.iloc[i]['time'].isoformat() #Data/ora in formato ISO
-    val = float(building.iloc[i]['power_consumtion']) #Valore di consumo energetico
+    val = float(building.iloc[i]['consumption (w)']) #Valore di consumo energetico
     #Invio i dati al server come sensore "building"
     post(f'{server}/sensor/building', data={'date': timestamp, 'val':val})
     time.sleep(2) # Attendi 2 secondi tra gli invii per evitare sovraccarico del server
@@ -26,7 +26,7 @@ zones = {s.replace('_energy', ''): xls.parse(s) for s in zone_sheets}
 for zone_name, zone_df in zone.items():
     for i in range(len(zone_df)):
         timestamp = building.iloc[i]['time'].isoformat() #Tempo sincronizzato con building
-        val = float(zone_df.iloc[i]['power']) #Valore di consumo energetico della zona
+        val = float(zone_df.iloc[i]['power (W)']) #Valore di consumo energetico della zona
         #Invio i dati al server come sensore della zona specifica
         post(f'{sensor}/sensors/{zone_name}', data={'date':timestamp, 'val':val})
         time.spleep(2) # Attendi 2 secondi tra gli invii per evitare sovraccarico del server
