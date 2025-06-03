@@ -4,7 +4,7 @@ from requests import post
 import time
 
 #Indirizzo del server Flask
-server = 'http://localhost:8080'
+server = 'http://192.168.1.48:8080'
 
 #Carica il file excel contenente i dati energetici
 xls = pd.ExcelFile('dataset.xlsx')
@@ -15,7 +15,7 @@ for i in range(len(building)):
     timestamp = building.iloc[i]['time'].isoformat() #Data/ora in formato ISO
     val = float(building.iloc[i]['consumption (w)']) #Valore di consumo energetico
     #Invio i dati al server come sensore "building"
-    post(f'{server}/sensor/building', data={'date': timestamp, 'val':val})
+    post(f'{server}/sensor/building', data={'date': timestamp, 'consumption (w)':val})
     time.sleep(2) # Attendi 2 secondi tra gli invii per evitare sovraccarico del server
 
 #Individua e carica i fogli delle zone energetiche (zone1, zone2, zone3,...)
@@ -23,10 +23,10 @@ zone_sheets = [s for s in xls.sheet_names if s.startswith('zone') and s.endswith
 zones = {s.replace('_energy', ''): xls.parse(s) for s in zone_sheets}
 
 #Invia i dati di consumo energetico per ogni zona
-for zone_name, zone_df in zone.items():
+for zone_name, zone_df in zones.items():
     for i in range(len(zone_df)):
         timestamp = building.iloc[i]['time'].isoformat() #Tempo sincronizzato con building
         val = float(zone_df.iloc[i]['power (W)']) #Valore di consumo energetico della zona
         #Invio i dati al server come sensore della zona specifica
-        post(f'{sensor}/sensors/{zone_name}', data={'date':timestamp, 'val':val})
-        time.spleep(2) # Attendi 2 secondi tra gli invii per evitare sovraccarico del server
+        post(f'{server}/sensors/{zone_name}', data={'date':timestamp, 'power (W)':val})
+        time.sleep(2) # Attendi 2 secondi tra gli invii per evitare sovraccarico del server

@@ -7,7 +7,7 @@ from datetime import datetime
 from google.cloud import storage, firestore
 
 app = Flask(__name__)
-app.secret_key = secret_key
+app.config['SECRET_KEY']= secret_key
 login = LoginManager(app)
 login.login_view = 'login'
 
@@ -75,25 +75,25 @@ def read_data():
     return json.dumps(output), 200
 
 #Route per ricevere dati da un sensore specifico 
-@app.route('/sensors/<sensor>', methods=['POST'])
+@app.route('/sensors/building', methods=['POST'])
 @login_required
-def new_data(sensor):
+def new_data():
     date = request.values['date']
-    val = float(request.values['val'])
-    entity = db.collection('sensors').document(sensor).get()
+    power = float(request.values['power'])
+    entity = db.collection('sensors').document().get()
     if entity.exists:
         d = entity.to_dict()
-        d['readings'].append({'data': date, 'val': val})
-        db.collection('sensors').document(sensor).set(d)
+        d['readings'].append({'data': date, 'power': power})
+        db.collection('sensors').document().set(d)
     else:
-        db.collection('sensors').document(sensor).set({'readings': [{'data': date, 'val': val}]})
+        db.collection('sensors').document().set({'readings': [{'data': date, 'power': power}]})
     return 'ok', 200
 
 #Route per leggere i dati di un sensore specifico
-@app.route('/sensors/<sensor>', methods=['GET'])
+@app.route('/sensors/building', methods=['GET'])
 @login_required
-def read(sensor):
-    entity = db.collection('sensors').document(sensor).get()
+def read():
+    entity = db.collection('sensors').document().get()
     if entity.exists:
         d = entity.to_dict()
         return json.dumps(d['readings']), 200
