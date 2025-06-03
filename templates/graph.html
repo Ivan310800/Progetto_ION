@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-    <title>Dashboard Energetica</title>
+    <title>Smart Building</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
     <link rel="stylesheet" href="../static/assets/css/main.css" />
@@ -16,6 +16,7 @@
         google.charts.setOnLoadCallback(() => {
             drawLineChart();
             drawCalendarChart();
+            drawPieChart();
         });
 
         async function drawLineChart(start = null, end = null) {
@@ -67,6 +68,27 @@
                 height: 350
             });
         }
+        async function drawPieChart() {
+            const res = await fetch("/api/consumo_zone");
+            const data = await res.json();
+
+            const dataTable = new google.visualization.DataTable();
+            dataTable.addColumn('string', 'Zona');
+            dataTable.addColumn('number', 'Consumo');
+
+            for (const month in data) {
+                dataTable.addRow([zone, data[zone]]);
+            }
+
+            const cahrt = new google.visualization.PieChart(document.getElementById('piechart_div'));
+            chart.draw(dataTable, {
+                title: 'Consumo per Zona',
+                is3D: true,
+                height: 400,
+                pieSliceText: 'percentage',
+                legend: { position: 'right' }
+                });
+            }
 
         function aggiornaGrafici() {
             const start = document.getElementById("start").value;
@@ -83,7 +105,7 @@
     <!-- Intro -->
     <section class="intro">
         <header>
-            <h1>Dashboard Energetica</h1>
+            <h1>Smart Building</h1>
             <ul class="actions">
                 <li><a href="#first" class="arrow scrolly"><span class="label">Next</span></a></li>
             </ul>
@@ -101,6 +123,9 @@
 
             <h2>Consumo Giornaliero (Calendar Chart)</h2>
             <div id="calendar_div" style="width:100%; height: 350px;"></div>
+
+            <h2>Distribuzione Consumo per Zona</h2>
+            <div id="piechart_div" style="width:100%; height: 400px;"></div>
         </div>
     </section>
 
