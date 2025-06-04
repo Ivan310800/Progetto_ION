@@ -76,22 +76,21 @@ def read_data():
 
 #Route per ricevere dati da un sensore specifico 
 @app.route('/sensors/building', methods=['POST'])
-@login_required
 def new_data():
-    date = request.values['date']
-    power = float(request.values['power'])
+    date = request.values['time']
+    consumption = float(request.values['consumption (W)'])
     entity = db.collection('sensors').document().get()
     if entity.exists:
         d = entity.to_dict()
-        d['readings'].append({'data': date, 'power': power})
+        d['readings'].append({'date': date, 'consumption (W)': consumption})
         db.collection('sensors').document().set(d)
     else:
-        db.collection('sensors').document().set({'readings': [{'data': date, 'power': power}]})
+        db.collection('sensors').document().set({'readings': [{'date': date, 'consumption (W)': consumption}]})
     return 'ok', 200
 
 #Route per leggere i dati di un sensore specifico
 @app.route('/sensors/building', methods=['GET'])
-@login_required
+
 def read():
     entity = db.collection('sensors').document().get()
     if entity.exists:
