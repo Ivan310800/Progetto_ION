@@ -56,24 +56,6 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# Route per ricevere i dati energetici da client [POST]
-@app.route('/data', methods=['POST'])
-@login_required
-def receive_data():
-    data = request.get_json()
-    timestamp = data.get('timestamp')
-    if not timestamp:
-        return {'error': 'Timestamp mancante'}, 400
-    db.collection('energy_data').document(timestamp).set(data)
-    return {'status': 'dato ricevuto'}
-
-#Route per leggere i dati energetici [GET]
-@app.route('/data', methods=['GET'])
-def read_data():
-    docs = db.collection('energy_data').order_by('timestamp').stream()
-    output = [doc.to_dict() for doc in docs]
-    return json.dumps(output), 200
-
 #Route per ricevere dati da un sensore specifico 
 @app.route('/sensors/building', methods=['POST'])
 def new_data():
@@ -99,6 +81,23 @@ def read():
     else:
         return 'NOT FOUND', 404
     
+#Route per ricevere dati da un sensore di zona specifico
+@app.route('/sensors/<zone>', methods=['POST'])
+def receive_zone_data(zone):
+    timestamp = request.values.get('date')
+    power = float(request.values['power (W)'])
+    doc_ref = db.collection(f'{zone}_energy').document()
+    doc_ref.set({'date': timestamp, 'power (W)': power})
+    return 'ok', 200
+
+@app.route('/data/<zone>', methods=['GET'])
+def get_zone_data(zone):
+    docs = db.collection(f'{zone}_energy').order_by('timestamp').stream()
+    results = [{'timestamp': doc.to_dict().get('timestamp'),
+                'power (W)': doc.to_dict().get('power (W)')} for doc in docs]
+    return json.dumps(results), 200
+
+    
 # Route per la pagina principale
 @app.route('/')
 @login_required
@@ -106,10 +105,10 @@ def home():
     return redirect(url_for('graph', sensor='building'))
 
 #Visualizzazione grafici(pagina)
-@app.route('/graph/<sensor>')
+@app.route('/graph')
 @login_required
-def graph(sensor):
-    return render_template('graph.html', sensor=sensor)
+def graph():
+    return render_template('graph.html')
 
 #API per grafico a linee: consumo e produzione nel tempo
 @app.route('/api/building')
@@ -136,7 +135,7 @@ def api_building():
     return json.dumps(output), 200
 
 #API per calendar chart: consumo giornaliero totale
-@app.route('/api/consumo_gionrnaliero')
+@app.route('/api/consumo_giornaliero')
 @login_required
 def consumo_giornaliero():
     docs = db.collection('energy_data').stream()
@@ -159,7 +158,7 @@ def consumo_zone():
     zone_totals = {}
     for doc in docs:
         d = doc.to_dict()
-        for k, v in d.keys():
+        for k, v in d.items():
             if k.endswith('_consumption') and k != 'building_consumption':
                 zone = k.replace('_consumption', '')
                 if zone not in zone_totals:
