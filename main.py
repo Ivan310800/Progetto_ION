@@ -47,7 +47,7 @@ def login():
         if user_data.get('password', '') == password:
             login_user(User(username))
             return redirect(next_page)
-    return {"Login fallito. Riprova."}, 401
+    return json.dumps({"error": "Login fallito. Riprova."}), 401
 
 #Route di logout
 @app.route('/logout', methods=['POST'])
