@@ -117,13 +117,13 @@ def api_building():
     start = request.args.get('start')
     end = request.args.get('end')
 
-    query = db.collection('energy_data')
+    q = db.collection('consumption (W)')
     if start:
-        query = query.where('timestamp', '>=', start)
+        q = q.where('timestamp', '>=', start)
     if end:
-        query = query.where('timestamp', '<=', end)
+        q = q.where('timestamp', '<=', end)
 
-    docs = query.order_by('timestamp').stream()
+    docs = q.order_by('timestamp').stream()
     output = []
     for doc in docs:
         d = doc.to_dict()
