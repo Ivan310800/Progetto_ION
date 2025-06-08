@@ -3,6 +3,7 @@ import pandas as pd
 from requests import post
 import time
 import threading
+from datetime import datetime
 #Indirizzo del server Flask
 server = 'http://192.168.1.48:8080'
 
@@ -17,16 +18,21 @@ zones = {s.replace('_energy', ''): xls.parse(s, header=1) for s in zone_sheets}
 #Numero di righe nel foglio "building_energy"
 num_righe = len(building)
 
+#Data di base fissa
+data_base = "2024-01-01"
+
 #Funzione per inviare una riga di building
 def invia_riga_building(i):
-    timestamp = building.iloc[i]['time'].isoformat()  # Data/ora in formato ISO
+    orario = str(building.iloc[i]['time'])
+    timestamp = datetime.strptime(f"{data_base} {orario}", "%T-%m-%d %H:%M").isoformat()
     consumption = float(building.iloc[i]['consumption (w)'])  # Valore di consumo energetico
     # Invio i dati al server come sensore "building"
     post(f'{server}/sensors/building', data={'time': timestamp, 'consumption (W)': consumption})
 
 #Funzione per inviare una riga di zona
 def invia_riga_zona(i, zone_name, zone_df):
-    timestamp = building.iloc[i]['time'].isoformat()  # Tempo sincronizzato con building
+    orario =str(building.iloc[i]['time'])
+    timestamp = datetime.strptime(f"{data_base} {orario}", "%Y-%m-%d %H:%M").isoformat() # Tempo sincronizzato con building
     power = float(zone_df.iloc[i]['power (W)'])  # Valore di consumo energetico della zona
     # Invio i dati al server come sensore della zona specifica
     post(f'{server}/sensors/{zone_name}', data={'date': timestamp, 'power (W)': power})
@@ -53,28 +59,3 @@ for i in range(num_righe):
     #Pausa tra l'invio di ogni riga per evitare sovraccarico del server
     time.sleep(1)
     
-
-'''
-#Invia i dati di consumo energetico dell'edificio
-for i in range(len(building)):
-    timestamp = building.iloc[i]['time'].isoformat() #Data/ora in formato ISO
-    consumption = float(building.iloc[i]['consumption (w)']) #Valore di consumo energetico
-    #Invio i dati al server come sensore "building"
-    post(f'{server}/sensors/building', data={'time': timestamp, 'consumption (W)':consumption})
-    time.sleep(2) # Attendi 2 secondi tra gli invii per evitare sovraccarico del server
-
-#Individua e carica i fogli delle zone energetiche (zone1, zone2, zone3,...)
-zone_sheets = [s for s in xls.sheet_names if s.startswith('zone') and s.endswith('_energy')]
-zones = {s.replace('_energy', ''): xls.parse(s, header=1) for s in zone_sheets}
-
-#Invia i dati di consumo energetico per ogni zona
-for zone_name, zone_df in zones.items():
-    print(f"Colonne di {zone_name}:", zone_df.columns) 
-    for i in range(len(zone_df)):
-        timestamp = building.iloc[i]['time'].isoformat() #Tempo sincronizzato con building
-        power = float(zone_df.iloc[i]['power (W)']) #Valore di consumo energetico della zona
-        #Invio i dati al server come sensore della zona specifica
-        post(f'{server}/sensors/{zone_name}', data={'date':timestamp, 'power (W)':power})
-        time.sleep(2) # Attendi 2 secondi tra gli invii per evitare sovraccarico del server
-
-'''

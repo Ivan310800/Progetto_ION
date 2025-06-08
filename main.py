@@ -87,13 +87,14 @@ def receive_zone_data(zone):
     timestamp = request.values.get('date')
     power = float(request.values['power (W)'])
     doc_ref = db.collection(f'{zone}_energy').document()
-    doc_ref.set({'date': timestamp, 'power (W)': power})
+    doc_ref.set({'zone':zone, 'date': timestamp, 'power (W)': power})
     return 'ok', 200
 
 @app.route('/data/<zone>', methods=['GET'])
 def get_zone_data(zone):
     docs = db.collection(f'{zone}_energy').order_by('timestamp').stream()
-    results = [{'timestamp': doc.to_dict().get('timestamp'),
+    results = [{'zone': zone,
+                'timestamp': doc.to_dict().get('timestamp'),
                 'power (W)': doc.to_dict().get('power (W)')} for doc in docs]
     return json.dumps(results), 200
 

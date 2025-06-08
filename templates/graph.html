@@ -32,14 +32,13 @@
             const data = new google.visualization.DataTable();
             data.addColumn('string', 'Time');
             data.addColumn('number', 'Consumo');
-            data.addColumn('number', 'Produzione');
 
             json.forEach(entry => {
-                data.addRow([entry.time, entry.consumption, entry.generation]);
+                data.addRow([entry.time, entry.consumption]);
             });
 
             const options = {
-                title: 'Consumo e Produzione',
+                title: 'Consumo edificio nel tempo',
                 hAxis: { title: 'Ora' },
                 vAxis: { title: 'Watt' },
                 legend: { position: 'bottom' }
@@ -50,7 +49,7 @@
         }
 
         async function drawCalendarChart() {
-            const res = await fetch("/api/consumo-giornaliero");
+            const res = await fetch("/api/consumo_giornaliero");
             const data = await res.json();
 
             const dataTable = new google.visualization.DataTable();
@@ -76,7 +75,7 @@
             dataTable.addColumn('string', 'Zona');
             dataTable.addColumn('number', 'Consumo');
 
-            for (const month in data) {
+            for (const zone in data) {
                 dataTable.addRow([zone, data[zone]]);
             }
 
@@ -118,10 +117,10 @@
             <button onclick="aggiornaGrafici()">Applica</button>
 
             <hr>
-            <h2>Consumo e Produzione</h2>
+            <h2>Consumo edificio</h2>
             <div id="chart_div" style="width:100%; height: 400px;"></div>
 
-            <h2>Consumo Giornaliero (Calendar Chart)</h2>
+            <h2>Consumo Giornaliero</h2>
             <div id="calendar_div" style="width:100%; height: 350px;"></div>
 
             <h2>Distribuzione Consumo per Zona</h2>
