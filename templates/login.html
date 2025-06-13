@@ -1,0 +1,78 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Smart Building</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/main.css') }}" />
+</head>
+<body class="is-preload">
+
+<!-- Wrapper -->
+<div id="wrapper">
+
+    <!-- Intro -->
+    <section class="intro">
+        <header>
+            <h1>Login</h1>
+            <p>Accedi al sistema di monitoraggio dello Smart Building</p>
+            <ul class="actions">
+                <li><a href="#first" class="arrow scrolly"><span class="label">Next</span></a></li>
+            </ul>
+        </header>
+
+        <div class="content">
+            <br><br><br><br><br><br>
+            <strong>Login</strong>
+
+            {% if error %}
+                <p style="color: red;"><strong>{{ error }}</strong></p>
+            {% endif %}
+
+            <form action="/login" method="post">
+                <div class="fields">
+                    <div class="field half">
+                        <input type="text" name="u" id="name" placeholder="Username" required />
+                    </div>
+                    <div class="field half">
+                        <input type="password" name="p" id="password" placeholder="Password" required />
+                    </div>
+                </div>
+                <input type="hidden" id="next" name="next" value="{{ next or '/graph' }}" />
+                <ul class="actions">
+                    <li><input type="submit" value="Login" class="button primary" /></li>
+                </ul>
+            </form>
+        </div>
+    </section>
+
+    <!-- Copyright -->
+    <div class="copyright">
+        &copy; Template: <a href="https://html5up.net">HTML5 UP</a>.
+    </div>
+
+</div>
+
+<!-- Scripts -->
+<script src="{{ url_for('static', filename='assets/js/jquery.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/jquery.scrolly.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/browser.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
+
+<!-- JS per gestire il parametro "next" -->
+<script type="text/javascript">
+    const searchParams = new URLSearchParams(window.location.search);
+    const next = searchParams.get('next');
+    if (next) {
+        document.getElementById('next').value = next;
+    }
+</script>
+
+</body>
+</html>

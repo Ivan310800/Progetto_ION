@@ -36,10 +36,10 @@ def load_user(username):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
-        return redirect(url_for('static', filename='login.html'))
+        return render_template('login.html', next=request.args.get('next', '/graph'))
     username = request.form['u']
     password = request.form['p']
-    next_page = request.form.get('next', url_for('graph'))
+    next_page = request.form.get('next', '/graph')
 
     doc = db.collection('users').document(username).get()
     if doc.exists:
@@ -47,10 +47,10 @@ def login():
         if user_data.get('password', '') == password:
             login_user(User(username))
             return redirect(next_page)
-    return json.dumps({"error": "Login fallito. Riprova."}), 401
+    return render_template('login.html', error = "Login fallito", next = next_page)
 
 #Route di logout
-@app.route('/logout', methods=['POST'])
+@app.route('/logout', methods=['POST', 'GET'])
 @login_required
 def logout():
     logout_user()
@@ -117,54 +117,56 @@ def graph():
 def api_building():
     start = request.args.get('start')
     end = request.args.get('end')
+    doc = db.collection('sensors').document('building').get()
 
-    q = db.collection('consumption (W)')
-    if start:
-        q = q.where('timestamp', '>=', start)
-    if end:
-        q = q.where('timestamp', '<=', end)
+    if not doc.exists:
+        return json.dumps([]), 200
+    readings = doc.to_dict().get('readings', [])
 
-    docs = q.order_by('timestamp').stream()
-    output = []
-    for doc in docs:
-        d = doc.to_dict()
-        output.append({
-            'time': d['timestamp'],
-            'consumption': d.get('building_consumption', 0),
-            'generation': d.get('building_generation', 0)
-        })
-    return json.dumps(output), 200
+    #Filtra per data se specificato
+    filtered = []
+    for r in readings:
+        ts = r['date']
+        if (not start or ts >= start) and (not end or ts <= end):
+            filtered.append({
+                'time':ts,
+                'consumption': r['consumption (W)'],
+            })
+    return json.dumps(filtered), 200
 
 #API per calendar chart: consumo giornaliero totale
 @app.route('/api/consumo_giornaliero')
 @login_required
 def consumo_giornaliero():
-    docs = db.collection('energy_data').stream()
+    docs = db.collection('sensors').document('building').get()
+    if not docs.exists:
+        return json.dumps({}), 200
+
+    readings =docs.to_dict().get('readings', [])
     daily_consumption = {}
-    for doc in docs:
-        d = doc.to_dict()
-        timestamp = d.get('timestamp')
-        if timestamp:
-            date_only = timestamp.split('T')[0]  # Prendo solo la data
-            if date_only not in daily_consumption:
-                daily_consumption[date_only] = 0
-            daily_consumption[date_only] += d.get('building_consumption', 0)
+    for r in readings:
+        date_only = r['date'].split('T')[0]
+        daily_consumption[date_only] = daily_consumption.get(date_only,0) + r['consumption (W)'] 
     return json.dumps(daily_consumption), 200
 
 #API per grafico a torta: distribuzione consumo per zona
 @app.route('/api/consumo_zone')
 @login_required
 def consumo_zone():
-    docs = db.collection('energy_data').stream()
-    zone_totals = {}
-    for doc in docs:
-        d = doc.to_dict()
-        for k, v in d.items():
-            if k.endswith('_consumption') and k != 'building_consumption':
-                zone = k.replace('_consumption', '')
-                if zone not in zone_totals:
-                    zone_totals[zone] = 0
-                zone_totals[zone] += v
+    zone_totals = {
+        'zone1': 0,
+        'zone2': 0,
+        'zone3': 0,
+        'zone4': 0,
+        'zone5': 0,
+    }
+
+    for zone in zone_totals:
+        docs = db.collection(f'{zone}_energy').stream()
+        for doc in docs:
+            data = doc.to_dict()
+            power = data.get('powere (W)', 0)
+            zone_totals[zone] += power
     return json.dumps(zone_totals), 200
 
 #Avvio del server
