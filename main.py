@@ -90,7 +90,7 @@ def receive_zone_data(zone):
     doc_ref.set({'zone':zone, 'date': timestamp, 'power (W)': power})
     return 'ok', 200
 
-@app.route('/data/<zone>', methods=['GET'])
+@app.route('/sensors/<zone>', methods=['GET'])
 def get_zone_data(zone):
     docs = db.collection(f'{zone}_energy').order_by('timestamp').stream()
     results = [{'zone': zone,
@@ -112,60 +112,65 @@ def graph():
     return render_template('graph.html')
 
 #API per grafico a linee: consumo e produzione nel tempo
-@app.route('/api/building')
+@app.route('/graph/building')
 @login_required
 def api_building():
     start = request.args.get('start')
     end = request.args.get('end')
-    doc = db.collection('sensors').document('building').get()
-
-    if not doc.exists:
-        return json.dumps([]), 200
-    readings = doc.to_dict().get('readings', [])
-
-    #Filtra per data se specificato
     filtered = []
-    for r in readings:
-        ts = r['date']
-        if (not start or ts >= start) and (not end or ts <= end):
-            filtered.append({
-                'time':ts,
-                'consumption': r['consumption (W)'],
-            })
-    return json.dumps(filtered), 200
+    total_consumption = 0 
 
+    doc = db.collection('sensors').stream()
+    for docs in doc:
+        data = docs.to_dict()
+        readings = data.get('readings', [])
+        for r in readings:
+            ts = r.get('date')
+            if not ts:
+                continue
+            if (not start or ts >= start) and (not end or ts <= end):
+                value= r.get('consumption (W)', 0)
+                total_consumption += value
+                filtered.append({
+                    'time':ts,
+                    'consumption': value
+                })
+    return json.dumps({
+        'status': 'ok',
+        'total_readings': len(filtered),
+        'total_consumption': total_consumption,
+        'data': filtered
+    })
+    
 #API per calendar chart: consumo giornaliero totale
-@app.route('/api/consumo_giornaliero')
+@app.route('/graph/consumo_giornaliero')
 @login_required
 def consumo_giornaliero():
-    docs = db.collection('sensors').document('building').get()
-    if not docs.exists:
-        return json.dumps({}), 200
-
-    readings =docs.to_dict().get('readings', [])
     daily_consumption = {}
-    for r in readings:
-        date_only = r['date'].split('T')[0]
-        daily_consumption[date_only] = daily_consumption.get(date_only,0) + r['consumption (W)'] 
+    doc = db.collection('sensors').stream()
+    for docs in doc:
+        data = docs.to_dict()
+        readings = data.get('readings', [])
+        for r in readings:
+            timestamp= r.get('date')
+            if not timestamp:
+                continue
+            date_only = timestamp.split('T')[0]
+            consumption = r.get('consumption (W)', 0)
+            daily_consumption[date_only] = daily_consumption.get(date_only, 0) + consumption
     return json.dumps(daily_consumption), 200
 
 #API per grafico a torta: distribuzione consumo per zona
-@app.route('/api/consumo_zone')
+@app.route('/graph/consumo_zone')
 @login_required
 def consumo_zone():
-    zone_totals = {
-        'zone1': 0,
-        'zone2': 0,
-        'zone3': 0,
-        'zone4': 0,
-        'zone5': 0,
-    }
+    zone_totals = {f'zone{i}': 0 for i in range(1,6)}
 
     for zone in zone_totals:
         docs = db.collection(f'{zone}_energy').stream()
         for doc in docs:
             data = doc.to_dict()
-            power = data.get('powere (W)', 0)
+            power = data.get('power (W)', 0) 
             zone_totals[zone] += power
     return json.dumps(zone_totals), 200
 

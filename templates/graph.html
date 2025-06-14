@@ -17,11 +17,10 @@
             drawLineChart();
             drawCalendarChart();
             drawPieChart();
-            updateZoneCharts();
         });
 
         async function drawLineChart(start = null, end = null) {
-            let url = "/api/building";
+            let url = "/graph/building";
             const params = new URLSearchParams();
             if (start) params.append("start", start);
             if (end) params.append("end", end);
@@ -34,7 +33,7 @@
             data.addColumn('string', 'Time');
             data.addColumn('number', 'Consumo');
 
-            json.forEach(entry => {
+            json.data.forEach(entry => {
                 data.addRow([entry.time, entry.consumption]);
             });
 
@@ -50,7 +49,7 @@
         }
 
         async function drawCalendarChart() {
-            const res = await fetch("/api/consumo_giornaliero");
+            const res = await fetch("/graph/consumo_giornaliero");
             const data = await res.json();
 
             const dataTable = new google.visualization.DataTable();
@@ -69,7 +68,7 @@
             });
         }
         async function drawPieChart() {
-            const res = await fetch("/api/consumo_zone");
+            const res = await fetch("/graph/consumo_zone");
             const data = await res.json();
 
             const dataTable = new google.visualization.DataTable();
@@ -80,7 +79,7 @@
                 dataTable.addRow([zone, data[zone]]);
             }
 
-            const cahrt = new google.visualization.PieChart(document.getElementById('piechart_div'));
+            const chart = new google.visualization.PieChart(document.getElementById('piechart_div'));
             chart.draw(dataTable, {
                 title: 'Consumo per Zona',
                 is3D: true,
@@ -105,7 +104,7 @@
     <!-- Intro -->
     <section class="intro">
         <header>
-            <h1>Smart Building</h1>
+            <h1>Smart Building Consumption</h1>
             <ul class="actions" style="display: flex; gap: 1em; align-items: center;">
                 <li>
                     <form action="/logout" method="post">
