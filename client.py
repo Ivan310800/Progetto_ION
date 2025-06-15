@@ -5,7 +5,7 @@ import time
 import threading
 from datetime import datetime, timedelta
 #Indirizzo del server Flask
-server = 'http://172.20.10.8:8080'
+server = 'http://192.168.1.48:8080'
 
 #Carica il file excel contenente i dati energetici
 xls = pd.ExcelFile('dataset.xlsx')
