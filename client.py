@@ -4,8 +4,23 @@ from requests import post
 import time
 import threading
 from datetime import datetime, timedelta
+import os 
+
 #Indirizzo del server Flask
-server = 'http://192.168.1.48:8080'
+server = 'http://192.168.1.105:8080'
+
+# File per salvare l’indice di progresso
+progress_file = 'progress.txt'
+
+def salva_indice(i):
+    with open(progress_file, 'w') as f:
+        f.write(str(i))
+
+def carica_indice():
+    if os.path.exists(progress_file):
+        with open(progress_file, 'r') as f:
+            return int(f.read().strip())
+    return 0
 
 #Carica il file excel contenente i dati energetici
 xls = pd.ExcelFile('dataset.xlsx')
@@ -49,8 +64,11 @@ def invia_riga_zona(i, zone_name, zone_df):
         # Invio i dati al server come sensore della zona specifica
         post(f'{server}/sensors/{zone_name}', data={'date': timestamp, 'power (W)': power, 'zone':zone_name})
 
+#Avvio ciclo di invio
+start_index = carica_indice()
+
 #Invia simultaneamente iogni riga di building e delle zone
-for i in range(num_righe):
+for i in range(start_index, num_righe):
     # Crea un thread per inviare i dati di building
     threads =[]
     #Thread per il building
@@ -69,5 +87,6 @@ for i in range(num_righe):
         t.join()
 
     #Pausa tra l'invio di ogni riga per evitare sovraccarico del server
+    salva_indice(i+1) #Aggiorna l'indice
     time.sleep(1)
     
